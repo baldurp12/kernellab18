@@ -187,6 +187,7 @@ static int __init setup_devices(void)
 	struct device *dev_ret;
 	dev_t dev;
 	
+
 	for (int i = 0; i < nr_devs; i++) {
 		dev = MKDEV(MAJOR(kl_dev), MINOR(kl_dev) + i);
 		dev_ret = device_create(kl_class, NULL, dev, NULL,
@@ -230,7 +231,7 @@ static int __init kernellab_init(void)
 		goto out3;
 	
 
-	/* Your code here */
+	printk("kernellab: module INJECTED\n");
 
 
 	kernellab_kobj = kobject_create_and_add("kernellab", kernel_kobj);
@@ -267,7 +268,7 @@ static void __exit kernellab_exit(void)
 	kobject_put(kernellab_kobj);
 
 	
-	/* Your code here */
+	printk("kernellab: module UNLOADED\n");
 
 	
 	kfree(kernellab_device);
@@ -277,5 +278,4 @@ module_init(kernellab_init);
 module_exit(kernellab_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Student Studentson <student15@ru.is");
-MODULE_AUTHOR("Student Secondson <student14@ru.is");
+MODULE_AUTHOR("Baldur Mar Petursson <baldurp12@ru.is>");
