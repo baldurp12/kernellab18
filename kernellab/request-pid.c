@@ -11,21 +11,22 @@
 /* Part I */
 void run_current(void)
 {
-        pid_t pid = 0;
+    pid_t pid = 0;
 	int fd;
 
 
-	/* Your code here */
+	fd = open("/dev/kernellab1", O_RDONLY);
+	read(fd, &pid, sizeof(pid));
+	close(fd);
 
-
-        printf("ANS: Current PID: %d\n", pid);
+    printf("ANS: Current PID: %d\n", pid);
 }
 
 /* Part II */
 void run_pid(pid_t pid)
 {
 	int fd;
-        struct pid_info info;
+    struct pid_info info;
 	struct kernellab_message kl_message;
 	memset(&info, 0, sizeof(struct pid_info));
 	kl_message.pid = pid;
@@ -33,11 +34,13 @@ void run_pid(pid_t pid)
 	
 
 	/* Your code here */
+	fd = open("/dev/kernellab2", O_WRONLY);
+	write(fd, &kl_message, sizeof(kl_message));
 
 
-        printf("ANS: PID: %d\n", info.pid);
-        printf("ANS: COMM: %s\n", info.comm);
-        printf("ANS: State: %ld\n", info.state);
+	printf("ANS: PID: %d\n", info.pid);
+	printf("ANS: COMM: %s\n", info.comm);
+	printf("ANS: State: %ld\n", info.state);
 }
 
 /* Part III */
@@ -104,7 +107,7 @@ int main()
 {
 	pid_t pid;
 	printf("=== Part I ===\n");
-        run_current();
+	run_current();
 	printf("\n");
 
 	printf("=== Part II ===\n");
@@ -117,5 +120,5 @@ int main()
 
 	printf("=== Part III ===\n");
 	run_sysfs();
-        return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
