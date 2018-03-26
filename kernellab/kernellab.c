@@ -27,9 +27,13 @@ struct kernellab_dev {
 	struct semaphore        sem;            /* mutual exclusion semaphore */
 	struct cdev             cdev;           /* Char device structure */
 
-
-	/* Your code here */
+	/* Add a minor number to differantiate between devices */
+	int						minor;
 };
+
+/* New global semaphore */
+struct semaphore glob_sem;
+
 
 struct kernellab_dev *kernellab_device;
 static struct class *kl_class; /* Global variable for the device class */
@@ -186,7 +190,7 @@ static int __init setup_devices(void)
 	int err;
 	struct device *dev_ret;
 	dev_t dev;
-	
+	sema_init(&glob_sem,1);
 
 	for (int i = 0; i < nr_devs; i++) {
 		dev = MKDEV(MAJOR(kl_dev), MINOR(kl_dev) + i);
@@ -230,10 +234,31 @@ static int __init kernellab_init(void)
 	if ((err = setup_devices()) < 0)
 		goto out3;
 	
-
+	/* Log to dmesg buffer that the module was injected */
 	printk("kernellab: module INJECTED\n");
 
+	/* Set the minor number for the device*/
+	for(int i = 0; i < nr_devs; i++){
+		kernellab_device[i].minor = i + 1;
+	}
 
+	/* Initialize the counters */
+	/* Dont really need the semaphore here but since
+	*
+	* They are global variables shared with others: better safe than sorry
+	*
+	*/
+	
+	if (down_interruptible(&glob_sem))
+		return -ERESTARTSYS;
+	/* Critical section */
+	
+	current_count = 0;
+	pid_count = 0;
+	all_count = 0;
+	up(&glob_sem);
+	
+	
 	kernellab_kobj = kobject_create_and_add("kernellab", kernel_kobj);
 	if (!kernellab_kobj) {
 		err = -ENOMEM;
@@ -267,7 +292,7 @@ static void __exit kernellab_exit(void)
 	unregister_chrdev_region(kl_dev, nr_devs);
 	kobject_put(kernellab_kobj);
 
-	
+	// Log to dmesg buffer that the module was unloaded
 	printk("kernellab: module UNLOADED\n");
 
 	
