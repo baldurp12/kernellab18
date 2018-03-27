@@ -51,11 +51,9 @@ static ssize_t kernellab_current_count(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
 
-
 	/* Your code here */
+	return sprintf(buf, "%d\n", current_count);
 
-
-  	return 0;
 }
 
 static struct kobj_attribute kernellab_current_count_attribute =
@@ -152,15 +150,34 @@ static long kernellab_ioctl(struct file *filp, unsigned int cmd,
 	return -ENOIOCTLCMD;
 }
 
+/* Write the pid of the __currently__ running process to a memory location specified by a user program (buf)*/
+
 static ssize_t kernellab_read(struct file *filp, char __user *buf, size_t count,
 			   loff_t *f_pos)
 {
 	struct kernellab_dev *dev = filp->private_data;
+	printk("READ: open(%d)\n",dev->minor);
 
+	/* Only want to write the pid of kernellab1 */
+	if(dev->minor == 1)
+	{
+		/* Semaphore locked */
+		if (down_interruptible(&glob_sem))
+			return -ERESTARTSYS;
+		
+		/* If copy_to_user fails  */
 
-	/* Your code here */
-
-	
+		if(copy_to_user(buf, &current->pid, sizeof(pid_t)))
+		{
+			printk("Copy to user failed\n");
+			return -EFAULT;
+		}
+		
+		/* Semaphore open */
+		up(&glob_sem);	
+	}
+	printk("Copied %d to buf\n", current->pid);
+	/* If we are in device 2 we return EFAULT by default */
 	return -EFAULT;
 }
 
@@ -243,12 +260,14 @@ static int __init kernellab_init(void)
 	}
 
 	/* Initialize the counters */
-	/* Dont really need the semaphore here but since
-	*
-	* They are global variables shared with others: better safe than sorry
+	/* 
+	* Dont really need the semaphore here but since
+	* They are global variables shared with others, better safe than sorry
 	*
 	*/
 	
+
+	/* Semaphore locked */
 	if (down_interruptible(&glob_sem))
 		return -ERESTARTSYS;
 	/* Critical section */
@@ -256,6 +275,8 @@ static int __init kernellab_init(void)
 	current_count = 0;
 	pid_count = 0;
 	all_count = 0;
+	
+	/* Semaphore open */
 	up(&glob_sem);
 	
 	
