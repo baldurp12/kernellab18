@@ -14,7 +14,7 @@ void run_current(void)
     pid_t pid = 0;
 	int fd;
 
-
+	/* Open and read pid from kernellab1 */
 	fd = open("/dev/kernellab1", O_RDONLY);
 	read(fd, &pid, sizeof(pid));
 	close(fd);
@@ -33,10 +33,10 @@ void run_pid(pid_t pid)
 	kl_message.address = &info;
 	
 
-	/* Your code here */
+	/* Open kernellab2 and write to fd */
 	fd = open("/dev/kernellab2", O_WRONLY);
 	write(fd, &kl_message, sizeof(kl_message));
-
+	close(fd);
 
 	printf("ANS: PID: %d\n", info.pid);
 	printf("ANS: COMM: %s\n", info.comm);
@@ -63,11 +63,11 @@ void run_sysfs(void)
 	fd_dev_pid = open("/dev/kernellab2", O_RDONLY);	
 	
 	fd_current = open("/sys/kernel/kernellab/current_count", O_RDONLY);
-	/* Missing other open calls */
+	fd_pid     = open("/sys/kernel/kernellab/pid_count", O_RDONLY);
+	fd_all     = open("/sys/kernel/kernellab/all_count", O_RDONLY);
 
 
-	/* Your code here, read from sysfs */
-
+	read(fd_current, buf, sizeof(buf));
 	
 	printf("ANS: ALL_COUNT: %d\n", all_count);
 	printf("ANS: CURRENT_COUNT: %d\n", current_count);
@@ -75,7 +75,7 @@ void run_sysfs(void)
 
 
 	ioctl(fd_dev_current, RESET);	
-	
+	current_count = atoi(buf);
 
 	/* Your code here, read again from sysfs */
 	

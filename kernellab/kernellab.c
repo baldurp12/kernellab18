@@ -189,6 +189,8 @@ static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 {
 	struct kernellab_dev *dev = filp->private_data;
 	struct kernellab_message *ker_msg;
+	struct task_struct *temp_task;
+	struct pid_info temp_pid_info;
 
 	if(dev->minor == 2)
 	{
@@ -197,6 +199,8 @@ static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 		 * Flag: GFP_KERNEL - Normal kernel ram
 		*/
 		ker_msg = kmalloc(sizeof(struct kernellab_message), GFP_KERNEL);
+
+
 		/* 
 		* The user writes to the /dev/kernellab 
 		* We need to write that to a buffer using:
@@ -207,7 +211,34 @@ static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 		{
 			return -EFAULT;
 		}
-		printk("ker_msg->pid : %d", ker_msg->pid);
+		
+		// printk("ker_msg->pid : %d\n", ker_msg->pid);
+
+		/* Find the process with the pid recieved */
+		for_each_process(temp_task)
+		{
+			if(temp_task->pid == ker_msg->pid)
+			{
+				// printk("Found a match !: %d == %d\n", temp_task->pid, ker_msg->pid);
+				
+				/* Write the tasks info to a temp buffer pid_info (temp_pid_info) */
+				temp_pid_info.pid = temp_task->pid;
+				temp_pid_info.state = temp_task->state;
+				strncpy(temp_pid_info.comm, temp_task->comm, 16);
+			}
+		}
+
+		/* 
+		 * Write the task info to user space using  
+		 * copy_to_user (void __user *to, const void *from, unsigned long n);
+		 */
+		if (copy_to_user(ker_msg->address, &temp_pid_info, sizeof(struct pid_info)))
+		{
+			return -EFAULT;
+		}
+
+
+		kfree(ker_msg);
 	}
 
 	
