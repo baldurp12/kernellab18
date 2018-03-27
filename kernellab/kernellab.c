@@ -20,8 +20,6 @@
 
 #include "pidinfo.h"
 
-
-
 struct kernellab_dev {
 	int                     open_count;     /* number of times opened */
 	struct semaphore        sem;            /* mutual exclusion semaphore */
@@ -50,10 +48,7 @@ static int all_count;
 static ssize_t kernellab_current_count(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
-
-	/* Your code here */
 	return sprintf(buf, "%d\n", current_count);
-
 }
 
 static struct kobj_attribute kernellab_current_count_attribute =
@@ -62,12 +57,7 @@ static struct kobj_attribute kernellab_current_count_attribute =
 static ssize_t kernellab_pid_count(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
-
-
-	/* Your code here */
-
-
-  	return 0;
+	return sprintf(buf, "%d\n", pid_count);
 }
 
 static struct kobj_attribute kernellab_pid_count_attribute =
@@ -76,12 +66,14 @@ static struct kobj_attribute kernellab_pid_count_attribute =
 static ssize_t kernellab_all_count(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
+	if (down_interruptible(&glob_sem))
+			return -ERESTARTSYS;
+	
+	all_count = current_count + pid_count;
+	
+	up(&glob_sem);
 
-
-	/* Your code here */
-
-
-  	return 0;
+	return sprintf(buf, "%d\n", all_count);
 }
 
 static struct kobj_attribute kernellab_all_count_attribute =
@@ -103,7 +95,6 @@ static struct attribute_group attr_group = {
 
 static struct kobject *kernellab_kobj;
 
-
 /**
  * Device file operations
  */
@@ -112,17 +103,22 @@ static int kernellab_open(struct inode *inode, struct file *filp)
 	struct kernellab_dev *dev; /* device information */
 	dev = container_of(inode->i_cdev, struct kernellab_dev, cdev);
 	filp->private_data = dev; /* for other methods */
-
+	printk(KERN_INFO "kernellab: open(%d) \n", dev->minor);
 	
-	/* Your code here */
-
-
-	/* How to use the device semaphore */
+	
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
-	/* Critical section */
-	up(&dev->sem);
 
+	if(dev->minor == 1)
+	{
+		current_count++;
+	}
+	else if (dev->minor == 2)
+	{
+		pid_count++;
+	}
+
+	up(&dev->sem);
 	
 	return 0;
 }
@@ -142,10 +138,9 @@ static long kernellab_ioctl(struct file *filp, unsigned int cmd,
 			    unsigned long arg)
 {
 	struct kernellab_dev *dev = filp->private_data;
+	printk(KERN_INFO "kernellab: ioctl(%d) \n", dev->minor);
 
-
-	/* Your code here */
-
+	printk("%s \n", cmd);
 
 	return -ENOIOCTLCMD;
 }
@@ -156,28 +151,28 @@ static ssize_t kernellab_read(struct file *filp, char __user *buf, size_t count,
 			   loff_t *f_pos)
 {
 	struct kernellab_dev *dev = filp->private_data;
-	printk("READ: open(%d)\n",dev->minor);
+	printk(KERN_INFO "kernellab: close(%d) \n", dev->minor);
 
 	/* Only want to write the pid of kernellab1 */
 	if(dev->minor == 1)
 	{
 		/* Semaphore locked */
-		if (down_interruptible(&glob_sem))
+		if (down_interruptible(&dev->sem))
 			return -ERESTARTSYS;
 		
 		/* If copy_to_user fails  */
 
 		if(copy_to_user(buf, &current->pid, sizeof(pid_t)))
-		{
-			printk("Copy to user failed\n");
+		{ 
 			return -EFAULT;
 		}
 		
 		/* Semaphore open */
-		up(&glob_sem);	
+		up(&dev->sem);	
 	}
-	printk("Copied %d to buf\n", current->pid);
-	/* If we are in device 2 we return EFAULT by default */
+	
+
+	/* If we are in device 2 we return EFAULT since */
 	return -EFAULT;
 }
 
@@ -237,7 +232,7 @@ static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 			return -EFAULT;
 		}
 
-
+		/* free the kmalloced memory */
 		kfree(ker_msg);
 	}
 
@@ -304,7 +299,7 @@ static int __init kernellab_init(void)
 		goto out3;
 	
 	/* Log to dmesg buffer that the module was injected */
-	printk("kernellab: module INJECTED\n");
+	printk(KERN_INFO "kernellab: module INJECTED\n");
 
 	/* Set the minor number for the device*/
 	for(int i = 0; i < nr_devs; i++){
@@ -366,7 +361,7 @@ static void __exit kernellab_exit(void)
 	kobject_put(kernellab_kobj);
 
 	// Log to dmesg buffer that the module was unloaded
-	printk("kernellab: module UNLOADED\n");
+	printk(KERN_INFO "kernellab: module UNLOADED\n");
 
 	
 	kfree(kernellab_device);
