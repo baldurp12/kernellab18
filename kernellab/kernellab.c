@@ -181,13 +181,34 @@ static ssize_t kernellab_read(struct file *filp, char __user *buf, size_t count,
 	return -EFAULT;
 }
 
+/*  place information about a process specified in the kernellab_message */
+/*  Kmalloc info : https://www.kernel.org/doc/htmldocs/kernel-api/API-kmalloc.html */
+
 static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 			       size_t count, loff_t *f_pos)
 {
 	struct kernellab_dev *dev = filp->private_data;
+	struct kernellab_message *ker_msg;
 
+	if(dev->minor == 2)
+	{
+		/* 
+		 * Get some memory space with kmalloc
+		 * Flag: GFP_KERNEL - Normal kernel ram
+		*/
+		ker_msg = kmalloc(sizeof(struct kernellab_message), GFP_KERNEL);
+		/* 
+		* The user writes to the /dev/kernellab 
+		* We need to write that to a buffer using:
+		* copy_from_user(void *to, const void __user *from, unsigned long n)
+		*/
 
-	/* Your code here */
+		if (copy_from_user(ker_msg, buf, sizeof(struct kernellab_message))) 
+		{
+			return -EFAULT;
+		}
+		printk("ker_msg->pid : %d", ker_msg->pid);
+	}
 
 	
 	return -EFAULT;
