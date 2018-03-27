@@ -85,8 +85,23 @@ void run_sysfs(void)
 
 	ioctl(fd_dev_current, RESET);	
 	
+	/* Restet fd's to pos 0 */
+	lseek(fd_current, 0, SEEK_SET);
+	lseek(fd_pid, 0, SEEK_SET);
+	lseek(fd_all, 0, SEEK_SET);
 
-	/* Your code here, read again from sysfs */
+
+	/* Read again from sysfs */
+	read(fd_current, buf, sizeof(buf));
+	current_count = atoi(buf);
+	
+	read(fd_pid, buf, sizeof(buf));
+	pid_count = atoi(buf);
+
+	read(fd_all, buf, sizeof(buf));
+	all_count = atoi(buf);
+
+	
 	
 
 	printf("ANS: ALL_COUNT: %d\n", all_count);
@@ -95,10 +110,21 @@ void run_sysfs(void)
 
 	
 	ioctl(fd_dev_pid, RESET);
+
+	/* Restet fd's to pos 0 */
+	lseek(fd_current, 0, SEEK_SET);
+	lseek(fd_pid, 0, SEEK_SET);
+	lseek(fd_all, 0, SEEK_SET);	
+
+	/* Read again from sysfs */
+	read(fd_current, buf, sizeof(buf));
+	current_count = atoi(buf);
 	
+	read(fd_pid, buf, sizeof(buf));
+	pid_count = atoi(buf);
 
-	/* Your code here, read again from sysfs */
-
+	read(fd_all, buf, sizeof(buf));
+	all_count = atoi(buf);
 
 	printf("ANS: ALL_COUNT: %d\n", all_count);
 	printf("ANS: CURRENT_COUNT: %d\n", current_count);

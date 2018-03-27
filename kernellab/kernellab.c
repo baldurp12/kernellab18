@@ -103,18 +103,20 @@ static int kernellab_open(struct inode *inode, struct file *filp)
 	struct kernellab_dev *dev; /* device information */
 	dev = container_of(inode->i_cdev, struct kernellab_dev, cdev);
 	filp->private_data = dev; /* for other methods */
+
 	printk(KERN_INFO "kernellab: open(%d) \n", dev->minor);
 	
-	
-	if (down_interruptible(&dev->sem))
-		return -ERESTARTSYS;
 
 	if(dev->minor == 1)
 	{
+		if (down_interruptible(&dev->sem))
+			return -ERESTARTSYS;
 		current_count++;
 	}
 	else if (dev->minor == 2)
 	{
+		if (down_interruptible(&dev->sem))
+			return -ERESTARTSYS;
 		pid_count++;
 	}
 
@@ -127,10 +129,8 @@ static int kernellab_release(struct inode *inode, struct file *filp)
 {
 	struct kernellab_dev *dev = filp->private_data;
 
-	
-	/* Your code here */
+	printk(KERN_INFO "kernellab: close(%d)", dev->minor);
 
-	
 	return 0;
 }
 
@@ -140,7 +140,24 @@ static long kernellab_ioctl(struct file *filp, unsigned int cmd,
 	struct kernellab_dev *dev = filp->private_data;
 	printk(KERN_INFO "kernellab: ioctl(%d) \n", dev->minor);
 
-	printk("%s \n", cmd);
+	if (down_interruptible(&dev->sem))
+		return -ERESTARTSYS;
+
+	if (cmd == RESET)
+	{
+		/* If it is device 1 we reset current_count */
+		if(dev->minor == 1)
+		{
+			current_count = 0;
+		}
+		/* Else reset pid_count */
+		else if(dev->minor == 2)
+		{
+			pid_count = 0;
+		}
+	}
+
+	up(&dev->sem);
 
 	return -ENOIOCTLCMD;
 }
@@ -151,7 +168,7 @@ static ssize_t kernellab_read(struct file *filp, char __user *buf, size_t count,
 			   loff_t *f_pos)
 {
 	struct kernellab_dev *dev = filp->private_data;
-	printk(KERN_INFO "kernellab: close(%d) \n", dev->minor);
+	printk(KERN_INFO "kernellab: read(%d) \n", dev->minor);
 
 	/* Only want to write the pid of kernellab1 */
 	if(dev->minor == 1)
@@ -186,6 +203,8 @@ static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 	struct kernellab_message *ker_msg;
 	struct task_struct *temp_task;
 	struct pid_info temp_pid_info;
+
+	printk(KERN_INFO "kernellab: write(%d)", dev->minor);
 
 	if(dev->minor == 2)
 	{
@@ -236,7 +255,6 @@ static ssize_t kernellab_write(struct file *filp, const char __user *buf,
 		kfree(ker_msg);
 	}
 
-	
 	return -EFAULT;
 }
 
@@ -312,7 +330,6 @@ static int __init kernellab_init(void)
 	* They are global variables shared with others, better safe than sorry
 	*
 	*/
-	
 
 	/* Semaphore locked */
 	if (down_interruptible(&glob_sem))
@@ -362,7 +379,6 @@ static void __exit kernellab_exit(void)
 
 	// Log to dmesg buffer that the module was unloaded
 	printk(KERN_INFO "kernellab: module UNLOADED\n");
-
 	
 	kfree(kernellab_device);
 }
